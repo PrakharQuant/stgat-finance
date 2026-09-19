@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>STGAT-Finance</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3"></script>
+  <style>
+    :root { --bg:#0b1220; --card:#121a2b; --line:#223049; --text:#e8eef8; --muted:#93a0b5; --accent:#7dd3fc; --good:#34d399; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, sans-serif; background:var(--bg); color:var(--text); }
+    header { padding:28px 20px 10px; max-width:1100px; margin:auto; }
+    h1 { margin:0 0 6px; font-size:28px; }
+    p { color:var(--muted); line-height:1.5; }
+    .grid { max-width:1100px; margin:0 auto 40px; padding:0 20px; display:grid; gap:16px; }
+    .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
+    .metric { font-size:28px; color:var(--good); }
+    label { color:var(--muted); font-size:13px; }
+    select { background:#0b1220; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:6px 10px; }
+    canvas { width:100% !important; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    td { text-align:center; padding:6px; border:1px solid var(--line); }
+    .heat { color:#0b1220; font-weight:600; }
+    .note { font-size:12px; }
+    @media (max-width:800px){ .cards{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>STGAT-Finance</h1>
+    <p>Decompose → Spatial GAT (who) → Temporal TCN (when) → Fuse. Next-day volatility across global indices.</p>
+    <p class="note" id="banner">Loading demo data…</p>
+  </header>
+  <div class="grid">
+    <div class="cards">
+      <div class="card"><div>MAE</div><div class="metric" id="mae">–</div></div>
+      <div class="card"><div>RMSE</div><div class="metric" id="rmse">–</div></div>
+      <div class="card"><div>R²</div><div class="metric" id="r2">–</div></div>
+    </div>
+    <div class="card">
+      <label>Market</label>
+      <select id="node"></select>
+      <canvas id="vol" height="120"></canvas>
+    </div>
+    <div class="card">
+      <h3>Who matters — attention / correlation graph</h3>
+      <div id="heat"></div>
+    </div>
+  </div>
+<script>
+const fallback = null;
+async function load() {
+  let data;
+  try {
+    const res = await fetch("./demo.json", { cache: "no-store" });
+    data = await res.json();
+  } catch (e) {
+    document.getElementById("banner").textContent = "Could not load demo.json";
+    return;
+  }
+  document.getElementById("banner").textContent =
+    data.note + "  |  as of " + data.as_of;
+  document.getElementById("mae").textContent = data.metrics.MAE.toFixed(3);
+  document.getElementById("rmse").textContent = data.metrics.RMSE.toFixed(3);
+  document.getElementById("r2").textContent = data.metrics.R2.toFixed(2);
+
+  const sel = document.getElementById("node");
+  data.nodes.forEach(n => {
+    const o = document.createElement("option");
+    o.value = n; o.textContent = n; sel.appendChild(o);
+  });
+
+  let chart;
+  function draw(name) {
+    const cfg = {
+      type: "line",
+      data: {
+        labels: data.dates,
+        datasets: [
+          { label: "Realized |r| %", data: data.realized_vol[name], borderColor: "#94a3b8", tension: 0.25 },
+          { label: "STGAT ŷ", data: data.predicted_vol[name], borderColor: "#7dd3fc", tension: 0.25 }
+        ]
+      },
+      options: { plugins: { legend: { labels: { color: "#e8eef8" } } },
+        scales: { x: { ticks: { color: "#93a0b5" } }, y: { ticks: { color: "#93a0b5" } } } }
+    };
+    if (chart) chart.destroy();
+    chart = new Chart(document.getElementById("vol"), cfg);
+  }
+  sel.onchange = () => draw(sel.value);
+  draw(data.nodes[0]);
+
+  const heat = document.getElementById("heat");
+  let html = "<table><tr><td></td>" + data.nodes.map(n => `<td>${n}</td>`).join("") + "</tr>";
+  data.attention.forEach((row, i) => {
+    html += `<tr><td>${data.nodes[i]}</td>`;
+    row.forEach(v => {
+      const bg = `rgba(125,211,252,${0.15 + v * 0.85})`;
+      html += `<td class="heat" style="background:${bg}">${v.toFixed(2)}</td>`;
+    });
+    html += "</tr>";
+  });
+  heat.innerHTML = html + "</table>";
+}
+load();
+</script>
+</body>
+</html>
