@@ -1,0 +1,29 @@
+tickers:
+  NIFTY: "^NSEI"
+  SP500: "^GSPC"
+  FTSE: "^FTSE"
+  NIKKEI: "^N225"
+  HSI: "^HSI"
+  DAX: "^GDAXI"
+  GOLD: "GC=F"
+  OIL: "CL=F"
+start: "2015-01-01"
+window: 20
+horizon: 1
+step: 5
+corr_lookback: 60
+corr_threshold: 0.4
+stl_period: 5          # weekly seasonality on daily bars
+hidden: 32
+heads: 4
+tcn_channels: 32
+tcn_levels: 4
+kernel: 3
+dropout: 0.2
+lr: 0.001
+batch_size: 16
+epochs: 80
+val_ratio: 0.15
+test_ratio: 0.15
+seed: 42
+device: "cpu"          # "cuda" if available
